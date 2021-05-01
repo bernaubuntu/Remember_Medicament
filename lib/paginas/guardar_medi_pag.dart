@@ -10,7 +10,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:remember_medicament/database/proveedor_db.dart';
 import 'package:remember_medicament/modelos/medicamento.dart';
 import 'package:image_gallery_saver/image_gallery_saver.dart';
-//import 'package:path_provider/path_provider.dart';
+import 'package:remember_medicament/utilidades/utiles.dart';
 
 class GuardarMediPag extends StatefulWidget {
   static const String ROUTE = '/guardar';
@@ -33,6 +33,7 @@ class _GuardarMediPagState extends State<GuardarMediPag> {
   String _retrieveDataError;
   File _imagen;
 
+  bool primero = true;
   final ImagePicker _picker = ImagePicker();
   final TextEditingController maxWidthController = TextEditingController();
   final TextEditingController maxHeightController = TextEditingController();
@@ -55,7 +56,7 @@ class _GuardarMediPagState extends State<GuardarMediPag> {
             _imagen = File(_imageFile.path);
           });
         } else {
-          Navigator.of(context).pop();
+          //Navigator.of(context).pop();
           return;
         }
       });
@@ -77,68 +78,17 @@ class _GuardarMediPagState extends State<GuardarMediPag> {
 
   Future<void> _displayPickImageDialog(
       BuildContext context, OnPickImageCallback onPick) async {
-    return showDialog(
-        context: context,
-        builder: (context) {
-          onPick(null, null, null);
-          /*
-          return AlertDialog(
-            title: Text('Añade parametros opcionales'),
-            content: Column(
-              children: <Widget>[
-                TextField(
-                  controller: maxWidthController,
-                  keyboardType: TextInputType.numberWithOptions(decimal: true),
-                  decoration: InputDecoration(
-                      hintText: "Introduce el ancho máximo si lo desea"),
-                ),
-                TextField(
-                  controller: maxHeightController,
-                  keyboardType: TextInputType.numberWithOptions(decimal: true),
-                  decoration: InputDecoration(
-                      hintText: "Introduce el alto máximo si lo desea"),
-                ),
-                TextField(
-                  controller: qualityController,
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                      hintText: "Introduce la calidad si lo desea"),
-                ),
-              ],
-            ),
-            actions: <Widget>[
-              TextButton(
-                child: const Text('CANCELAR'),
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-              ),
-              TextButton(
-                  child: const Text('ELEGIR'),
-                  onPressed: () {
-                    double width = maxWidthController.text.isNotEmpty
-                        ? double.parse(maxWidthController.text)
-                        : null;
-                    double height = maxHeightController.text.isNotEmpty
-                        ? double.parse(maxHeightController.text)
-                        : null;
-                    int quality = qualityController.text.isNotEmpty
-                        ? int.parse(qualityController.text)
-                        : null;
-                    onPick(width, height, quality);
-                    Navigator.of(context).pop();
-                  }),
-            ],
-          );
-          */
-        });
+    return onPick(null, null, null);
   }
 
   @override
   Widget build(BuildContext context) {
     Medicamento medicamento = ModalRoute.of(context).settings.arguments;
     //ProveedorDB.borrarTablas();
-    _iniciar(medicamento);
+    if (primero) {
+      _iniciar(medicamento);
+      primero = false;
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -197,7 +147,9 @@ class _GuardarMediPagState extends State<GuardarMediPag> {
     cnController.text = medicamento.cn;
     nombreController.text = medicamento.nombre;
     contenidoController.text = medicamento.contenido;
-    if (medicamento.rutaImagen != null) {
+    if (_imagen != null) {
+      medicamento.rutaImagen = _imagen.path;
+    } else if (medicamento.rutaImagen != null) {
       _imagen = File(medicamento.rutaImagen);
     }
   }
@@ -269,8 +221,14 @@ class _GuardarMediPagState extends State<GuardarMediPag> {
   }
 
   Future<http.Response> _respuestaHttp() async {
-    var url = Uri.parse('https://cima.aemps.es/cima/rest/medicamento?cn=' +
-        cnController.text); //712729
+    var valor = cnController.text;
+
+    if (valor.length == 7) {
+      valor = cnController.text.substring(0, cnController.text.length - 1);
+    }
+
+    var url = Uri.parse(
+        'https://cima.aemps.es/cima/rest/medicamento?cn=' + valor); //712729
     final response = await http.get(url);
 
     print('Estado de la respuesta: ${response.statusCode}');
@@ -304,7 +262,6 @@ class _GuardarMediPagState extends State<GuardarMediPag> {
         var nombre = ruta.pathSegments.last.toString();
         var nombres = nombre.split('.');
         //_getExternalDirectorio();
-
         var respon = await Dio().get(
           fotos[0]['url'],
           options: Options(responseType: ResponseType.bytes),
@@ -313,12 +270,15 @@ class _GuardarMediPagState extends State<GuardarMediPag> {
             Uint8List.fromList(respon.data),
             quality: 60,
             name: nombres[0]);
+        //print(result);
+        //print(respon);
         if (respon.statusCode == 200 && result['isSuccess'] == true) {
           var mFile =
               File(result['filePath'].toString().replaceAll('file://', ''));
           if (mFile.existsSync()) {
             setState(() {
-              _imagen = mFile;
+              _imageFile = null;
+              _imagen = File(mFile.path);
             });
           }
         }
@@ -360,6 +320,9 @@ class _GuardarMediPagState extends State<GuardarMediPag> {
                               }
                               return _previewImage();
                             case ConnectionState.done:
+                              if (_imagen != null) {
+                                medicamento.rutaImagen = _imagen.path;
+                              }
                               return _previewImage();
                             default:
                               if (snapshot.hasError) {
@@ -389,6 +352,10 @@ class _GuardarMediPagState extends State<GuardarMediPag> {
                   validator: (value) {
                     if (value.isEmpty) {
                       return 'El valor no puede estar vacio';
+                    } else if (value.length == 7) {
+                      if (Utiles.calculoCN(value) == false) {
+                        return 'El digito de control no es correcto';
+                      }
                     }
                     return null;
                   },
@@ -403,6 +370,8 @@ class _GuardarMediPagState extends State<GuardarMediPag> {
                   ],
                   decoration: InputDecoration(
                       labelText: 'Código Nacional (CN)',
+                      hintText:
+                          'Escribe el CN del medicamento y pulsa el icono para obtener datos',
                       border:
                           OutlineInputBorder(), //borderRadius: BorderRadius.all(Radius.circular(20))
                       suffix: IconButton(
@@ -418,11 +387,8 @@ class _GuardarMediPagState extends State<GuardarMediPag> {
                             }
                           })),
                   style: TextStyle(
-                    //color: Colors.grey[600],
-                    //fontWeight: FontWeight.w800,
                     fontFamily: 'Roboto',
                     letterSpacing: 0.5,
-                    //fontSize: 15,
                   ),
                 ),
                 SizedBox(
@@ -439,15 +405,13 @@ class _GuardarMediPagState extends State<GuardarMediPag> {
                   controller: nombreController,
                   decoration: InputDecoration(
                       labelText: 'Nombre',
+                      hintText: 'Escribe el nombre del medicamento',
                       border:
                           OutlineInputBorder() //borderRadius: BorderRadius.all(Radius.circular(20))
                       ),
                   style: TextStyle(
-                    //color: Colors.grey[600],
-                    //fontWeight: FontWeight.w800,
                     fontFamily: 'Roboto',
                     letterSpacing: 0.5,
-                    //fontSize: 15,
                   ),
                 ),
                 SizedBox(
@@ -463,15 +427,13 @@ class _GuardarMediPagState extends State<GuardarMediPag> {
                   controller: contenidoController,
                   decoration: InputDecoration(
                       labelText: 'Contenido',
+                      hintText: 'Escribe que contiene el medicamento',
                       border:
                           OutlineInputBorder() //borderRadius: BorderRadius.all(Radius.circular(20))
                       ),
                   style: TextStyle(
-                    //color: Colors.grey[600],
-                    //fontWeight: FontWeight.w800,
                     fontFamily: 'Roboto',
                     letterSpacing: 0.5,
-                    //fontSize: 15,
                   ),
                 ),
                 ElevatedButton(
@@ -485,6 +447,8 @@ class _GuardarMediPagState extends State<GuardarMediPag> {
                       print('Contenido: ' + contenidoController.text);
                       if (_imagen != null) {
                         print('rutaImagen: ' + _imagen.path);
+                      } else {
+                        print('imagen = null');
                       }
                       print('Guardar formulario');
 
@@ -494,12 +458,20 @@ class _GuardarMediPagState extends State<GuardarMediPag> {
                         medicamento.nombre = nombreController.text;
                         medicamento.contenido = contenidoController.text;
                         medicamento.rutaImagen =
-                            _imageFile != null ? _imageFile.path : null;
-                        ProveedorDB.actualizar(medicamento);
+                            _imagen != null ? _imagen.path : null;
+                        /*
+                        if (_imageFile == null && _imagen != null) {
+                          medicamento.rutaImagen = _imagen.path;
+                        } else {
+                          medicamento.rutaImagen =
+                              _imageFile != null ? _imageFile.path : null;
+                        }
+                        */
+                        ProveedorDB.actualizarMedi(medicamento);
                         Navigator.of(context).pop();
                       } else {
                         //Inserción
-                        ProveedorDB.insertar(Medicamento(
+                        ProveedorDB.insertarMedi(Medicamento(
                           cn: cnController.text,
                           nombre: nombreController.text,
                           contenido: contenidoController.text,
