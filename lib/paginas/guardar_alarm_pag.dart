@@ -1,6 +1,8 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:remember_medicament/database/proveedor_db.dart';
 import 'package:remember_medicament/modelos/alarma_info.dart';
+import 'package:remember_medicament/utilidades/utiles.dart';
 import 'package:remember_medicament/widgets/circulo_dia.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest.dart' as tz;
@@ -8,11 +10,10 @@ import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/standalone.dart';
 import 'package:flutter_native_timezone/flutter_native_timezone.dart';
 
-final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-    FlutterLocalNotificationsPlugin();
+import '../main.dart';
 
 class GuardarAlarmPag extends StatefulWidget {
-  static const String ROUTE = '/guardaralarm';
+  static const String ROUTE = '/guardaralarm2';
 
   @override
   _GuardarAlarmPagState createState() => _GuardarAlarmPagState();
@@ -38,6 +39,11 @@ class _GuardarAlarmPagState extends State<GuardarAlarmPag> {
   }
 
   @override
+  void dispose() {
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     AlarmaInfo alarmaInfo = ModalRoute.of(context).settings.arguments;
     if (alarmaInfo.id != null && primero) {
@@ -45,10 +51,12 @@ class _GuardarAlarmPagState extends State<GuardarAlarmPag> {
         hour: alarmaInfo.hora,
         minute: alarmaInfo.minuto,
       );
+      _iniciar(alarmaInfo);
       primero = false;
     }
-
-    _iniciar(alarmaInfo);
+    if (primero) {
+      _iniciar(alarmaInfo);
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -92,6 +100,8 @@ class _GuardarAlarmPagState extends State<GuardarAlarmPag> {
               children: <Widget>[
                 SizedBox(height: 10.0),
                 TextFormField(
+                  maxLines: 2,
+                  maxLength: 80,
                   validator: (value) {
                     if (value.isEmpty) {
                       return 'El valor no puede estar vacio';
@@ -273,11 +283,6 @@ class _GuardarAlarmPagState extends State<GuardarAlarmPag> {
                           alarmaInfo.titulo = tituloController.text;
                           alarmaInfo.hora = _horaSeleccionada.hour;
                           alarmaInfo.minuto = _horaSeleccionada.minute;
-                          print('Título: ' + tituloController.text);
-                          print(_horaSeleccionada.hour);
-                          print(_horaSeleccionada.minute);
-                          print('Guardar formulario');
-                          print(alarmaInfo.toJson());
                           if (alarmaInfo.id != null) {
                             //actualización
                             ProveedorDB.actualizarAlarm(alarmaInfo);
@@ -321,41 +326,133 @@ class _GuardarAlarmPagState extends State<GuardarAlarmPag> {
   }
 
 // prueba para que suene una alarma
+  Future<void> _cancelarNotificacion(int id) async {
+    await flutterLocalNotificationsPlugin.cancel(id);
+  }
 
-  void horarioAlarma(
+  Future<void> _desactivarAlarma(AlarmaInfo alarmaInfo) async {
+    int valorAlarma = await Utiles.valorIdAlarma(alarmaInfo.id);
+    if (valorAlarma != null) {
+      for (var i = 0; i < 8; i++) {
+        await _cancelarNotificacion(valorAlarma + i);
+      }
+    }
+  }
+
+  Future<void> _horarioAlarma(
       TZDateTime scheduledNotificationDateTime, AlarmaInfo alarmaInfo) async {
-    var androidPlatformChannelSpecifics = AndroidNotificationDetails(
-      'alarm_notif',
-      'alarm_notif',
-      'Channel for Alarm notification',
-      icon: 'launcher_icon',
-      playSound: true,
-      priority: Priority.high,
-      sound: RawResourceAndroidNotificationSound('a_long_cold_sting'),
-      largeIcon: DrawableResourceAndroidBitmap('launcher_icon'),
-      visibility: NotificationVisibility.public,
-      fullScreenIntent: true,
-    );
+    await _desactivarAlarma(alarmaInfo);
+    int cantidaddias = alarmaInfo.cantidadDias();
 
-    var iOSPlatformChannelSpecifics = IOSNotificationDetails(
-        sound: 'a_long_cold_sting.wav',
-        presentAlert: true,
-        presentBadge: true,
-        presentSound: true);
-    var platformChannelSpecifics = NotificationDetails(
-        android: androidPlatformChannelSpecifics,
-        iOS: iOSPlatformChannelSpecifics);
+    int valorAlarma = await Utiles.valorIdAlarma(alarmaInfo.id);
 
-    await flutterLocalNotificationsPlugin.zonedSchedule(
-      0,
-      'Oficina',
-      alarmaInfo.titulo,
-      scheduledNotificationDateTime,
-      platformChannelSpecifics,
-      androidAllowWhileIdle: true,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.wallClockTime,
-    );
+    String objPayLoad = '{"idalarm":${alarmaInfo.id}}';
+
+    if (alarmaInfo.activo == 1) {
+      switch (cantidaddias) {
+        case 0: // solo una vez
+          await flutterLocalNotificationsPlugin.zonedSchedule(
+              valorAlarma, //id,
+              alarmaInfo.titulo,
+              'solo una vez',
+              scheduledNotificationDateTime,
+              const NotificationDetails(
+                android: AndroidNotificationDetails(
+                  'Canal_ID',
+                  'Nombre_Canal',
+                  'Descripcion_Canal',
+                  priority: Priority.high,
+                  importance: Importance.high,
+                  fullScreenIntent: true,
+                  //tag: 'tag0',
+                ),
+              ),
+              androidAllowWhileIdle: true,
+              payload: objPayLoad, //'idalarm: ' + alarmaInfo.id.toString(),
+              uiLocalNotificationDateInterpretation:
+                  UILocalNotificationDateInterpretation.absoluteTime);
+          break;
+        case 1:
+        case 2:
+        case 3:
+        case 4:
+        case 5:
+        case 6: // solo los dias marcados
+
+          bool diaActivo = false;
+          for (var i = 0; i < 7; i++) {
+            TZDateTime scheduledDate =
+                scheduledNotificationDateTime.add(Duration(days: i));
+            int posicion = scheduledDate.weekday;
+            if (posicion == DateTime.monday && alarmaInfo.lunes == 1) {
+              diaActivo = true;
+            } else if (posicion == DateTime.tuesday && alarmaInfo.martes == 1) {
+              diaActivo = true;
+            } else if (posicion == DateTime.wednesday &&
+                alarmaInfo.miercoles == 1) {
+              diaActivo = true;
+            } else if (posicion == DateTime.thursday &&
+                alarmaInfo.jueves == 1) {
+              diaActivo = true;
+            } else if (posicion == DateTime.friday && alarmaInfo.viernes == 1) {
+              diaActivo = true;
+            } else if (posicion == DateTime.saturday &&
+                alarmaInfo.sabado == 1) {
+              diaActivo = true;
+            } else if (posicion == DateTime.sunday && alarmaInfo.domingo == 1) {
+              diaActivo = true;
+            }
+            if (diaActivo) {
+              await flutterLocalNotificationsPlugin.zonedSchedule(
+                  valorAlarma + scheduledDate.weekday, // id,
+                  alarmaInfo.titulo,
+                  '' + Utiles.diaSemana(scheduledDate.weekday),
+                  scheduledDate,
+                  const NotificationDetails(
+                    android: AndroidNotificationDetails(
+                      'Canal_ID',
+                      'Nombre_Canal',
+                      'Descripcion_Canal',
+                      priority: Priority.high,
+                      importance: Importance.high,
+                      fullScreenIntent: true,
+                    ),
+                  ),
+                  androidAllowWhileIdle: true,
+                  payload: objPayLoad, //'idalarm: ' + alarmaInfo.id.toString(),
+                  uiLocalNotificationDateInterpretation:
+                      UILocalNotificationDateInterpretation.absoluteTime,
+                  matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime);
+            }
+            diaActivo = false;
+            scheduledDate.add(Duration(days: 1));
+          }
+          break;
+        case 7: // todos los dias
+          await flutterLocalNotificationsPlugin.zonedSchedule(
+              valorAlarma, //id,
+              alarmaInfo.titulo,
+              'Todos los días',
+              scheduledNotificationDateTime,
+              const NotificationDetails(
+                android: AndroidNotificationDetails(
+                  'Canal_ID',
+                  'Nombre_Canal',
+                  'Descripcion_Canal',
+                  priority: Priority.high,
+                  importance: Importance.high,
+                  fullScreenIntent: true,
+                ),
+              ),
+              androidAllowWhileIdle: true,
+              payload: objPayLoad, //'idalarm: ' + alarmaInfo.id.toString(),
+              uiLocalNotificationDateInterpretation:
+                  UILocalNotificationDateInterpretation.absoluteTime,
+              matchDateTimeComponents: DateTimeComponents.time);
+          break;
+        default:
+      }
+    }
   }
 
   void guardarAlarma(AlarmaInfo alarmaInfo) async {
@@ -363,10 +460,6 @@ class _GuardarAlarmPagState extends State<GuardarAlarmPag> {
     final String currentTimeZone =
         await FlutterNativeTimezone.getLocalTimezone();
 
-    final List<String> availableTimezones =
-        await FlutterNativeTimezone.getAvailableTimezones();
-
-    print(currentTimeZone);
     final ahora = DateTime.now();
     tz.initializeTimeZones();
     tz.setLocalLocation(tz.getLocation(currentTimeZone));
@@ -378,6 +471,10 @@ class _GuardarAlarmPagState extends State<GuardarAlarmPag> {
     else
       horarioAlarmaFecha = nuevaFecha.add(Duration(days: 1));
 
-    horarioAlarma(horarioAlarmaFecha, alarmaInfo);
+    if (alarmaInfo.activo == 1) {
+      await _horarioAlarma(horarioAlarmaFecha, alarmaInfo);
+    } else {
+      await _desactivarAlarma(alarmaInfo);
+    }
   }
 }

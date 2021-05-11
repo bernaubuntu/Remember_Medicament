@@ -3,10 +3,10 @@ import 'dart:isolate';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_native_timezone/flutter_native_timezone.dart';
-import 'package:remember_medicament/paginas/alarma_manager_pag.dart';
-import 'package:remember_medicament/paginas/guardar_alarm2_pag.dart';
 import 'package:remember_medicament/paginas/guardar_alarm_pag.dart';
+import 'package:remember_medicament/paginas/guardar_detalles_pag.dart';
 import 'package:remember_medicament/paginas/listado_actual_pag.dart';
+import 'package:remember_medicament/paginas/listado_alarm_detalles_grupo_pag.dart';
 import 'package:remember_medicament/paginas/listado_alarm_pag.dart';
 import 'package:remember_medicament/paginas/listado_medi_pag.dart';
 import 'package:remember_medicament/paginas/guardar_medi_pag.dart';
@@ -70,7 +70,9 @@ Future<void> main() async {
 
   if (notificationAppLaunchDetails?.didNotificationLaunchApp ?? false) {
     selectedNotificationPayload = notificationAppLaunchDetails.payload;
-    initialRoute = ListadoActualPag.ROUTE;
+    if (selectedNotificationPayload != null) {
+      initialRoute = ListadoActualPag.ROUTE;
+    }
     flutterLocalNotificationsPlugin.getNotificationAppLaunchDetails();
   }
 
@@ -124,13 +126,12 @@ Future<void> main() async {
         ListadoActualPag.ROUTE: (_) =>
             ListadoActualPag(selectedNotificationPayload),
         GuardarMediPag.ROUTE: (_) => GuardarMediPag(),
-        //AlarmManagerExampleApp2.ROUTE: (_) => AlarmManagerExampleApp2(),
+        GuardarDetallesPag.ROUTE: (_) => GuardarDetallesPag(),
         ListadoAlarmPag.ROUTE: (_) =>
             ListadoAlarmPag(notificationAppLaunchDetails),
         GuardarAlarmPag.ROUTE: (_) => GuardarAlarmPag(),
-        GuardarAlarm2Pag.ROUTE: (_) => GuardarAlarm2Pag(),
-        AlarmaManagerExampleApp2.ROUTE: (_) =>
-            AlarmaManagerExampleApp2(notificationAppLaunchDetails),
+        ListadoAlarmDetallesGrupoPag.ROUTE: (_) =>
+            ListadoAlarmDetallesGrupoPag(),
       },
     ),
   );

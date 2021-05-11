@@ -37,7 +37,6 @@ class Utiles {
           return true;
         }
       }
-      print('diferencia = ' + diferencia.toString());
     } else {
       return false;
     }
@@ -46,11 +45,8 @@ class Utiles {
   }
 
   static Future<int> valorIdAlarma(int valorAlarma) async {
-    //print(valorAlarma);
     int valorMax = await ProveedorDB.valorMaxIDAlarma();
-    //print('Valor max: ' + valorMax.toString());
     int valorMin = await ProveedorDB.valorMinIDAlarma();
-    //print('Valor min: ' + valorMin.toString());
 
     if (valorAlarma != null) {
       if (valorMax < 5000) {
@@ -63,7 +59,6 @@ class Utiles {
     } else {
       valorAlarma = valorMax + 1;
     }
-    //print(valorAlarma);
     return valorAlarma;
   }
 
@@ -95,5 +90,14 @@ class Utiles {
         valor = 'Lunes';
     }
     return valor;
+  }
+
+  static getImagenNoDisponible() {
+    return Image(
+      image: AssetImage('assets/img/Imagen-no-disponible-282x300.png'),
+      height: 50.0,
+      alignment: Alignment.center,
+      fit: BoxFit.contain,
+    );
   }
 }

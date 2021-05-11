@@ -84,7 +84,6 @@ class _GuardarMediPagState extends State<GuardarMediPag> {
   @override
   Widget build(BuildContext context) {
     Medicamento medicamento = ModalRoute.of(context).settings.arguments;
-    //ProveedorDB.borrarTablas();
     if (primero) {
       _iniciar(medicamento);
       primero = false;
@@ -175,12 +174,7 @@ class _GuardarMediPagState extends State<GuardarMediPag> {
       //}
     } else if (_pickImageError != null) {
       //'Error al seleccionar una imagen: $_pickImageError'
-      return Image(
-        image: AssetImage('assets/img/Imagen-no-disponible-282x300.png'),
-        height: 50.0,
-        alignment: Alignment.center,
-        fit: BoxFit.contain,
-      );
+      return Utiles.getImagenNoDisponible();
     } else if (_imagen != null) {
       return Semantics(
           child: Image.file(
@@ -189,12 +183,7 @@ class _GuardarMediPagState extends State<GuardarMediPag> {
           ),
           label: 'image_picker_example_picked_image');
     } else {
-      return Image(
-        image: AssetImage('assets/img/Imagen-no-disponible-282x300.png'),
-        height: 50.0,
-        alignment: Alignment.center,
-        fit: BoxFit.contain,
-      );
+      return Utiles.getImagenNoDisponible();
     }
   }
 
@@ -327,21 +316,9 @@ class _GuardarMediPagState extends State<GuardarMediPag> {
                             default:
                               if (snapshot.hasError) {
                                 //Error al seleccionar una imagen / video: ${snapshot.error}}
-                                return Image(
-                                  image: AssetImage(
-                                      'assets/img/Imagen-no-disponible-282x300.png'),
-                                  height: 50.0,
-                                  alignment: Alignment.center,
-                                  fit: BoxFit.contain,
-                                );
+                                return Utiles.getImagenNoDisponible();
                               } else {
-                                return Image(
-                                  image: AssetImage(
-                                      'assets/img/Imagen-no-disponible-282x300.png'),
-                                  height: 50.0,
-                                  alignment: Alignment.center,
-                                  fit: BoxFit.contain,
-                                );
+                                return Utiles.getImagenNoDisponible();
                               }
                           }
                         },
@@ -361,7 +338,6 @@ class _GuardarMediPagState extends State<GuardarMediPag> {
                   },
                   maxLines: 1,
                   maxLength: 7,
-                  //minLines: 6,
                   controller: cnController,
                   keyboardType: TextInputType.number,
                   inputFormatters: [
@@ -442,16 +418,6 @@ class _GuardarMediPagState extends State<GuardarMediPag> {
                       : Text('Actualizar'),
                   onPressed: () {
                     if (_formkey.currentState.validate()) {
-                      print('CN: ' + cnController.text);
-                      print('Nombre: ' + nombreController.text);
-                      print('Contenido: ' + contenidoController.text);
-                      if (_imagen != null) {
-                        print('rutaImagen: ' + _imagen.path);
-                      } else {
-                        print('imagen = null');
-                      }
-                      print('Guardar formulario');
-
                       if (medicamento.id != null) {
                         //actualización
                         medicamento.cn = cnController.text;
@@ -459,14 +425,6 @@ class _GuardarMediPagState extends State<GuardarMediPag> {
                         medicamento.contenido = contenidoController.text;
                         medicamento.rutaImagen =
                             _imagen != null ? _imagen.path : null;
-                        /*
-                        if (_imageFile == null && _imagen != null) {
-                          medicamento.rutaImagen = _imagen.path;
-                        } else {
-                          medicamento.rutaImagen =
-                              _imageFile != null ? _imageFile.path : null;
-                        }
-                        */
                         ProveedorDB.actualizarMedi(medicamento);
                         Navigator.of(context).pop();
                       } else {

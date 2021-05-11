@@ -1,16 +1,15 @@
-import 'dart:io';
-
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:remember_medicament/database/proveedor_db.dart';
 import 'package:remember_medicament/modelos/medicamento.dart';
-import 'package:remember_medicament/paginas/alarma_manager_pag.dart';
 import 'package:remember_medicament/paginas/guardar_medi_pag.dart';
 import 'package:remember_medicament/paginas/listado_actual_pag.dart';
+import 'package:remember_medicament/paginas/listado_alarm_pag.dart';
+import 'package:remember_medicament/widgets/medi_imagen.dart';
 
 import '../main.dart';
-import 'listado_alarm_pag.dart';
 
 class ListadoMediPag extends StatefulWidget {
   static const String ROUTE = '/';
@@ -31,6 +30,7 @@ class ListadoMediPag extends StatefulWidget {
 
 class _ListadoMediPagState extends State<ListadoMediPag> {
   List<Medicamento> medicamentos = [];
+  var estadoStorage;
 
   NotificationAppLaunchDetails notificationAppLaunchDetails;
 
@@ -61,6 +61,48 @@ class _ListadoMediPagState extends State<ListadoMediPag> {
           badge: true,
           sound: true,
         );
+    _preguntarPermisos();
+  }
+
+  void _preguntarPermisos() async {
+    /*
+    // para comprobar varios permisos al mismo tiempo
+    Map statuses = await [
+      Permission.camera,
+      Permission.storage,
+    ].request();
+
+    print(statuses[Permission.storage]);
+
+    if (await Permission.storage.request().isGranted) {
+      // Permiso concedido
+    }
+    */
+    estadoStorage = await Permission.storage.status;
+    var estadoCamara = await Permission.camera.status;
+    print('Estado Storage: ' + estadoStorage.toString());
+    print('Estado Camara: ' + estadoCamara.toString());
+
+    if (estadoStorage != PermissionStatus.granted) {
+      final snackBar = SnackBar(
+        content: Text("Es necesario dar permiso al storage"),
+        duration: Duration(seconds: 5),
+        backgroundColor: Colors.green,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(
+            Radius.circular(5.00),
+          ),
+        ),
+        action: SnackBarAction(
+          textColor: Colors.white,
+          label: 'Settings',
+          onPressed: () {
+            openAppSettings();
+          },
+        ), //behavior: SnackBarBehavior.floating,
+      );
+      ScaffoldMessenger.of(context).showSnackBar(snackBar);
+    }
   }
 
   void _configureDidReceiveLocalNotificationSubject(
@@ -127,12 +169,27 @@ class _ListadoMediPagState extends State<ListadoMediPag> {
         title: Text('Listado de Medicamentos'),
       ),
       drawer: MenuLateral(),
-      body: Container(
-        padding: EdgeInsets.fromLTRB(5, 5, 5, 5),
-        child: ListView.builder(
-          itemCount: medicamentos.length,
-          itemBuilder: (_, i) => _crearElemento(i),
-        ),
+      body: Column(
+        children: [
+          Container(
+            padding: EdgeInsets.fromLTRB(2.0, 4.0, 2.0, 1.0),
+            width: MediaQuery.of(context).size.width,
+            height: 58.0,
+            child: _contenedorEstatico(),
+          ),
+          Container(
+            width: MediaQuery.of(context).size.width,
+            height: MediaQuery.of(context).size.height >
+                    MediaQuery.of(context).size.width
+                ? MediaQuery.of(context).size.height * .8
+                : MediaQuery.of(context).size.height * .63,
+            padding: EdgeInsets.fromLTRB(5, 1, 5, 5),
+            child: ListView.builder(
+              itemCount: medicamentos.length,
+              itemBuilder: (_, i) => _crearElemento(i),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -214,17 +271,7 @@ class _ListadoMediPagState extends State<ListadoMediPag> {
                 child: Row(
                   children: <Widget>[
                     // Sección izquierda
-                    medicamentos[i].rutaImagen != null
-                        ? SizedBox(
-                            height: 50.0,
-                            width: 50.0,
-                            child: Image.file(File(medicamentos[i].rutaImagen)))
-                        : Image(
-                            image: AssetImage(
-                                'assets/img/Imagen-no-disponible-282x300.png'),
-                            height: 50.0,
-                            alignment: Alignment.topLeft,
-                          ),
+                    mediImagen(medicamentos[i].rutaImagen),
                   ],
                 ),
               ),
@@ -282,13 +329,60 @@ class _ListadoMediPagState extends State<ListadoMediPag> {
           ),
         ),
       ),
-      onTap: () {
-        Navigator.pushNamed(context, ListadoAlarmPag.ROUTE,
-                arguments: medicamentos.length > 0 ? medicamentos[i] : null)
-            .then((value) => setState(() {
-                  //_cargarDatos();
-                }));
-      },
+    );
+  }
+
+  _contenedorEstatico() {
+    if (estadoStorage != PermissionStatus.granted) {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          Card(
+            color: Colors.green,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            child: MaterialButton(
+                onPressed: () {
+                  Navigator.pushNamed(context, ListadoAlarmPag.ROUTE);
+                },
+                child: Icon(
+                  Icons.access_alarms,
+                  color: Colors.white,
+                  size: 48,
+                )),
+          ),
+          Card(
+            color: Colors.green[400],
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            child: MaterialButton(
+                onPressed: () {
+                  openAppSettings();
+                },
+                child: Icon(
+                  Icons.settings_applications,
+                  color: Colors.white,
+                  size: 48,
+                )),
+          ),
+        ],
+      );
+    }
+
+    return Center(
+      child: Card(
+        color: Colors.green,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        child: MaterialButton(
+            onPressed: () {
+              Navigator.pushNamed(context, ListadoAlarmPag.ROUTE);
+            },
+            child: Icon(
+              Icons.access_alarms,
+              color: Colors.white,
+              size: 48,
+            )),
+      ),
     );
   }
 }
@@ -318,52 +412,28 @@ class MenuLateral extends StatelessWidget {
             color: Colors.green,
             child: new ListTile(
               title: Text(
-                "MENU 1",
+                "Medicamentos",
                 style: TextStyle(color: Colors.white),
               ),
+              onTap: () {
+                Navigator.pushNamed(context, ListadoMediPag.ROUTE);
+              },
             ),
           ),
           new ListTile(
-            title: Text("MENU 2"),
-            onTap: () {},
-          ),
-          new ListTile(
-            title: Text("Borrar Tablas"),
+            title: Text("Alarmas"),
             onTap: () {
-              //ProveedorDB.borrarTablas();
-              AlertDialog(
-                content: Text(
-                    "¿Estás seguro de que quieres eliminar TODAS LAS TABLAS?"),
-                actions: <Widget>[
-                  TextButton(
-                    child: Text(
-                      "Cancelar",
-                      style: TextStyle(color: Colors.black),
-                    ),
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                    },
-                  ),
-                  TextButton(
-                    child: Text(
-                      "Borrar",
-                      style: TextStyle(color: Colors.red),
-                    ),
-                    onPressed: () {
-                      ProveedorDB.borrarTablas();
-                      Navigator.of(context).pop();
-                    },
-                  ),
-                ],
-              );
+              Navigator.pushNamed(context, ListadoAlarmPag.ROUTE);
             },
           ),
+          /*
           new ListTile(
-            title: Text("ALARMA"),
+            title: Text("Pruebas"),
             onTap: () {
-              Navigator.pushNamed(context, AlarmaManagerExampleApp2.ROUTE);
+              openAppSettings();
             },
-          )
+          ),
+          */
         ],
       ),
     );

@@ -10,7 +10,7 @@ import 'package:remember_medicament/modelos/medicamento.dart';
 class AlarmaInfo {
   AlarmaInfo({
     this.id,
-    this.idmed,
+    //this.idmed, // campo V1
     this.titulo,
     this.hora,
     this.minuto,
@@ -24,7 +24,20 @@ class AlarmaInfo {
     this.activo,
   });
 
-  AlarmaInfo.vacio();
+  AlarmaInfo.vacio() {
+    this.titulo = 'Nuevo Título';
+    this.hora = 1;
+    this.minuto = 0;
+    this.lunes = 0;
+    this.martes = 0;
+    this.miercoles = 0;
+    this.jueves = 0;
+    this.viernes = 0;
+    this.sabado = 0;
+    this.domingo = 0;
+    this.activo = 0;
+  }
+  /*
   AlarmaInfo.vacioMedi(Medicamento medicamento) {
     this.idmed = medicamento.id;
     this.hora = 1;
@@ -38,9 +51,10 @@ class AlarmaInfo {
     this.domingo = 0;
     this.activo = 1;
   }
+  */
 
   int id;
-  int idmed;
+  //int idmed; // campo V1
   String titulo;
   int hora;
   int minuto;
@@ -60,7 +74,7 @@ class AlarmaInfo {
 
   factory AlarmaInfo.fromMap(Map<String, dynamic> json) => AlarmaInfo(
         id: json["id"],
-        idmed: json["idmed"],
+        //idmed: json["idmed"], // campo V1
         titulo: json["titulo"],
         hora: json["hora"],
         minuto: json["minuto"],
@@ -76,7 +90,7 @@ class AlarmaInfo {
 
   Map<String, dynamic> toMap() => {
         "id": id,
-        "idmed": idmed,
+        //"idmed": idmed, // campo V1
         "titulo": titulo,
         "hora": hora,
         "minuto": minuto,

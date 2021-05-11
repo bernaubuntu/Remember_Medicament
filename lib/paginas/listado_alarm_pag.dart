@@ -1,19 +1,15 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:remember_medicament/database/proveedor_db.dart';
-//import 'package:remember_medicament/modelos/medicamento.dart';
+import 'package:remember_medicament/modelos/alarma_detalles.dart';
 import 'package:remember_medicament/modelos/alarma_info.dart';
 import 'package:remember_medicament/modelos/medicamento.dart';
-//import 'package:remember_medicament/paginas/alarm_manager_pag.dart';
-import 'package:remember_medicament/paginas/guardar_medi_pag.dart';
-import 'package:remember_medicament/paginas/guardar_alarm2_pag.dart';
+import 'package:remember_medicament/paginas/guardar_alarm_pag.dart';
+import 'package:remember_medicament/paginas/listado_alarm_detalles_grupo_pag.dart';
 import 'package:remember_medicament/utilidades/utiles.dart';
 import 'package:remember_medicament/widgets/alarma_item.dart';
 
 import '../main.dart';
-//import 'package:remember_medicament/paginas/alarm_manager_example.dart';
 
 class ListadoAlarmPag extends StatelessWidget {
   static const String ROUTE = '/alarmapag';
@@ -44,7 +40,7 @@ class __MiListadoAlarmState extends State<_MiListadoAlarm> {
 
   MiElementoPopup elemento_seleccionado = elecciones[0];
 
-  _seleccionado(MiElementoPopup elemento) {
+  _seleccionado(MiElementoPopup elemento) async {
     switch (elemento.id) {
       case 0: // Notificaciones pendientes
         _consultarNotificacionesPendientes();
@@ -57,6 +53,25 @@ class __MiListadoAlarmState extends State<_MiListadoAlarm> {
         break;
       case 3: // Notificaciones Activas
         _getNotificacionesActivas();
+        break;
+      case 4: // Listar Alarmas Detalles
+        List<AlarmaDetalles> auxAlarmasDetalles =
+            await ProveedorDB.alarmasDetallesTodas();
+        print(auxAlarmasDetalles.length);
+        print('*******-*---');
+        for (var laAlarma in auxAlarmasDetalles) {
+          print(laAlarma.iddetalles);
+          print(laAlarma.idalarm);
+          print(laAlarma.idmed);
+          print(laAlarma.toma);
+          print(laAlarma.observaciones);
+          print('******');
+        }
+        break;
+      case 5: // cancelar todas las alarmas
+        await _cancelarTodasNotificaciones();
+        await ProveedorDB.desactivarTodasAlarmas();
+        setState(() {});
         break;
       default:
     }
@@ -78,13 +93,15 @@ class __MiListadoAlarmState extends State<_MiListadoAlarm> {
     return Scaffold(
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       floatingActionButton: FloatingActionButton(
-        child: Icon(Icons.add),
+        child: Icon(Icons.add_alarm),
         onPressed: () {
-          Navigator.pushNamed(context, GuardarAlarm2Pag.ROUTE,
-                  arguments: AlarmaInfo.vacioMedi(medicamento))
-              .then((value) => setState(() {
-                    _cargarDatos();
-                  }));
+          Navigator.pushNamed(
+            context,
+            GuardarAlarmPag.ROUTE,
+            arguments: AlarmaInfo.vacio(),
+          ).then((value) => setState(() {
+                _cargarDatos();
+              }));
         },
       ),
       appBar: AppBar(
@@ -199,16 +216,12 @@ class __MiListadoAlarmState extends State<_MiListadoAlarm> {
   }
 
   Future<void> _cargarDatos() async {
-    List<AlarmaInfo> auxAlarmaInfo =
-        await ProveedorDB.alarmaMedicamentos(medicamento);
+    List<AlarmaInfo> auxAlarmaInfo = await ProveedorDB.alarmasTodas();
     if (this.mounted) {
       setState(() {
-        //Your state change code goes here
         alarmaInfo = auxAlarmaInfo;
       });
     }
-
-    //setState(() {});
   }
 
   Future<void> _desactivarAlarma(AlarmaInfo alarmaInfo) async {
@@ -218,8 +231,8 @@ class __MiListadoAlarmState extends State<_MiListadoAlarm> {
     }
   }
 
-  Future<void> _desactivarTodasAlarmasMedi(AlarmaInfo alarmaInfo) async {
-    await ProveedorDB.desactivarTodasAlarmasMedi(alarmaInfo.idmed);
+  Future<void> _desactivarAlarmas(AlarmaInfo alarmaInfo) async {
+    await ProveedorDB.desactivarAlarmas(alarmaInfo.id);
   }
 
   _crearElemento(int i) {
@@ -294,47 +307,13 @@ class __MiListadoAlarmState extends State<_MiListadoAlarm> {
           children: <Widget>[
             alarmaItem(alarmaInfo[i].hora.toString(),
                 alarmaInfo[i].minuto.toString(), context, alarmaInfo[i]),
-            /*
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.only(left: 5.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      alarmaInfo[i].titulo,
-                      style: TextStyle(
-                        color: Colors.black,
-                        fontWeight: FontWeight.w800,
-                        fontFamily: 'Roboto',
-                        letterSpacing: 0.5,
-                        fontSize: 16,
-                      ),
-                    ),
-                    Text(
-                      alarmaInfo[i].idmed.toString(),
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontWeight: FontWeight.w400,
-                        fontFamily: 'Roboto',
-                        letterSpacing: 0.5,
-                        fontSize: 15,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            */
             Column(
               mainAxisAlignment: MainAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
                 MaterialButton(
-                  //color: Colors.amber,
                   onPressed: () {
-                    Navigator.pushNamed(context, GuardarAlarm2Pag.ROUTE,
+                    Navigator.pushNamed(context, GuardarAlarmPag.ROUTE,
                             arguments:
                                 alarmaInfo.length > 0 ? alarmaInfo[i] : null)
                         .then((value) => setState(() {
@@ -346,11 +325,10 @@ class __MiListadoAlarmState extends State<_MiListadoAlarm> {
                     color: Colors.green,
                   ),
                 ),
-                /*
                 MaterialButton(
-                  //color: Colors.amber,
                   onPressed: () {
-                    Navigator.pushNamed(context, GuardarAlarm2Pag.ROUTE,
+                    Navigator.pushNamed(
+                            context, ListadoAlarmDetallesGrupoPag.ROUTE,
                             arguments:
                                 alarmaInfo.length > 0 ? alarmaInfo[i] : null)
                         .then((value) => setState(() {
@@ -358,11 +336,10 @@ class __MiListadoAlarmState extends State<_MiListadoAlarm> {
                             }));
                   },
                   child: Icon(
-                    Icons.edit,
+                    Icons.playlist_add,
                     color: Colors.green,
                   ),
                 ),
-                */
               ],
             ),
           ],
@@ -379,8 +356,10 @@ class MiElementoPopup {
 }
 
 List<MiElementoPopup> elecciones = <MiElementoPopup>[
-  MiElementoPopup(titulo: 'Notificaciones pendientes', id: 0),
-  MiElementoPopup(titulo: 'Cancelar Notificación', id: 1),
-  MiElementoPopup(titulo: 'Cancelar Todas las notificaciones', id: 2),
-  MiElementoPopup(titulo: 'Notificaciones Activas', id: 3),
+  //MiElementoPopup(titulo: 'Notificaciones pendientes', id: 0),
+  //MiElementoPopup(titulo: 'Cancelar Notificación', id: 1),
+  //MiElementoPopup(titulo: 'Cancelar Todas las notificaciones', id: 2),
+  //MiElementoPopup(titulo: 'Notificaciones Activas', id: 3),
+  //MiElementoPopup(titulo: 'Listar Alarma detalles', id: 4),
+  MiElementoPopup(titulo: 'Cancelar todas las alarmas', id: 5),
 ];

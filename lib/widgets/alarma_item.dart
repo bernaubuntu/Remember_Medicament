@@ -19,9 +19,12 @@ Widget alarmaItem(hora, minuto, context, AlarmaInfo alarmaInfo) {
               children: <Widget>[
                 Row(
                   children: [
-                    Padding(
+                    Container(
+                      width: MediaQuery.of(context).size.width * 0.7,
                       padding: const EdgeInsets.fromLTRB(8.0, 2.0, 8.0, 1.0),
-                      child: Text(alarmaInfo.titulo),
+                      child: Text(
+                        alarmaInfo.titulo,
+                      ),
                     ),
                   ],
                 ),
